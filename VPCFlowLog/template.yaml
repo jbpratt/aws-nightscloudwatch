@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  VPC Flow Log + Cloudwatch Event to identify calls made for create-vpc and delete-flow-logs
+
+Resources:
+  VPCWatcherFunction:
+    Type: AWS::Serverless::Function
+    DependsOn: VPCWatcherFunctionRole
+    Properties:
+      CodeUri: src/
+      FunctionName: VPCWatcher
+      Role: !GetAtt VPCWatcherFunctionRole.Arn
+      Timeout: 30
+      Handler: app.lambda_handler
+      ReservedConcurrentExecutions: 1
+      Runtime: python3.8
+
+  VPCWatcherRule:
+    Type: AWS::Events::Rule
+    DependsOn: VPCWatcherFunction
+    Properties:
+      Name: "VPCWatcherRule"
+      State: "ENABLED"
+      Targets:
+        -
+          Arn: !GetAtt VPCWatcherFunction.Arn
+          Id: "VPCWatcherTargetFunction"
+      EventPattern:
+        source:
+          - "aws.ec2"
+        detail-type:
+          - "AWS API Call via CloudTrail"
+        detail:
+          eventSource:
+            - "ec2.amazonaws.com"
+          eventName:
+            - "CreateVpc"
+            - "DeleteFlowLogs"
+
+  VPCWatcherPermissions:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref VPCWatcherFunction
+      Action: "lambda:InvokeFunction"
+      Principal: "events.amazonaws.com"
+      SourceArn: !GetAtt VPCWatcherRule.Arn
+
+  VPCWatcherFunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: VPCWatcherRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+              - 'lambda.amazonaws.com'
+            Action:
+             - 'sts:AssumeRole'
+      Policies:
+        - PolicyName: "VPCWatcherFunctionRolePolicy"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogStream
+                  - logs:CreateLogGroup
+                  - logs:CreateLogDelivery
+                  - logs:PutLogEvents
+                Resource:
+                  - "*"
+        - PolicyName: "VPCWatcherRolePolicyEC2"
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:DescribeVpcs
+                  - ec2:DescribeFlowLogs
+                  - ec2:CreateFlowLogs
+                Resource:
+                  - "*"
