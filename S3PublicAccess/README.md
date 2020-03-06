@@ -13,3 +13,7 @@ This template provisions the following:
 ### Setup
 1. Edit `template.yaml` to update the `RECEIVER` variable with a valid email address for the alert from SNS
 2. Run `sam build && sam deploy --guided`
+
+
+#### Notes
+- This setup can be swapped around to instead react upon CW event similar to the VPC function. Reasoning here would be that Config has a charge associated with each evaluation of the rule which could get costly.
