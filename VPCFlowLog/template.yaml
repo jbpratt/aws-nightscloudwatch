@@ -15,6 +15,9 @@ Resources:
       Handler: app.lambda_handler
       ReservedConcurrentExecutions: 1
       Runtime: python3.8
+      Environment:
+        Variables:
+          DESTINATION: ""
 
   VPCWatcherRule:
     Type: AWS::Events::Rule
